@@ -25,15 +25,20 @@ def motor_thread():
     try:
         while True:
             if object_detected_flag:
-                # 0° to 90°
+                # Always return to 0 before starting
+                if current_position != 0:
+                    current_position = stepper_motor.rotate_to_position(current_position, 0)
+                    time.sleep(1)
+
+                # Go to 90°
                 current_position = stepper_motor.rotate_to_position(current_position, 90)
                 time.sleep(10)
 
-                # 90° to 180°
+                # Go to 180°
                 current_position = stepper_motor.rotate_to_position(current_position, 180)
                 time.sleep(5)
 
-                # Back to 0°
+                # Return to 0°
                 current_position = stepper_motor.rotate_to_position(current_position, 0)
                 time.sleep(5)
             else:
