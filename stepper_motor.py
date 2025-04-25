@@ -1,45 +1,40 @@
 import RPi.GPIO as GPIO
 import time
 
-# Define motor pins
-IN1 = 18
-IN2 = 23
-IN3 = 24
-IN4 = 25
+class StepperMotor:
+    def __init__(self, in1, in2, in3, in4):
+        self.pins = [in1, in2, in3, in4]
+        GPIO.setmode(GPIO.BCM)
+        for pin in self.pins:
+            GPIO.setup(pin, GPIO.OUT)
+            GPIO.output(pin, 0)
 
-# Half-step sequence for 28BYJ-48
-SEQUENCE = [
-    [1, 0, 0, 1],
-    [1, 0, 0, 0],
-    [1, 1, 0, 0],
-    [0, 1, 0, 0],
-    [0, 1, 1, 0],
-    [0, 0, 1, 0],
-    [0, 0, 1, 1],
-    [0, 0, 0, 1]
-]
+        self.sequence = [
+            [1, 0, 0, 0],
+            [1, 1, 0, 0],
+            [0, 1, 0, 0],
+            [0, 1, 1, 0],
+            [0, 0, 1, 0],
+            [0, 0, 1, 1],
+            [0, 0, 0, 1],
+            [1, 0, 0, 1]
+        ]
+        self.steps_per_rev = 512  # 360 degrees
 
-DEGREES_TO_STEPS = lambda deg: int(deg * 512 / 360)
+    def rotate(self, step_count):
+        steps = abs(step_count)
+        delay = 0.002  # always positive
+        direction = 1 if step_count > 0 else -1
 
-def setup_motor():
-    GPIO.setmode(GPIO.BCM)
-    for pin in [IN1, IN2, IN3, IN4]:
-        GPIO.setup(pin, GPIO.OUT)
-        GPIO.output(pin, 0)
+        for _ in range(steps):
+            for step in range(8)[::direction]:
+                for pin in range(4):
+                    GPIO.output(self.pins[pin], self.sequence[step][pin])
+                time.sleep(delay)
 
-def move_stepper(steps, delay=0.002):
-    for _ in range(abs(steps)):
-        for halfstep in SEQUENCE if steps > 0 else reversed(SEQUENCE):
-            for pin, val in zip([IN1, IN2, IN3, IN4], halfstep):
-                GPIO.output(pin, val)
-            time.sleep(delay)
-
-def rotate_to_position(current_deg, target_deg):
-    steps = DEGREES_TO_STEPS(target_deg - current_deg)
-    move_stepper(steps)
-    return target_deg
-
-def cleanup_motor():
-    for pin in [IN1, IN2, IN3, IN4]:
-        GPIO.output(pin, 0)
-    GPIO.cleanup([IN1, IN2, IN3, IN4])
+    def go_to_angle(self, current_angle, target_angle):
+        step_angle = 360 / self.steps_per_rev  # about 0.703 degrees per step
+        delta_angle = target_angle - current_angle
+        step_count = int(delta_angle / step_angle)
+        self.rotate(step_count)
+        return target_angle
