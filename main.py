@@ -1,7 +1,11 @@
 import time
 import threading
+import RPi.GPIO as GPIO
 from stepper_motor import StepperMotor
 from ir_sensor import IRSensor
+
+# Use BCM GPIO numbering
+GPIO.setmode(GPIO.BCM)
 
 # Initialize IR sensor and stepper motor
 ir_sensor = IRSensor(pin=17)
@@ -16,24 +20,33 @@ def motor_thread_func():
         if ir_sensor.is_object_detected():
             print("Object detected!")
 
-            # Go from 0 to 90
+            # Rotate to 90 degrees
             current_angle = motor.go_to_angle(current_angle, 90)
             time.sleep(3)
 
-            # Go from 90 to 180
+            # Rotate to 180 degrees
             current_angle = motor.go_to_angle(current_angle, 180)
             time.sleep(2)
 
-            # Go back to 0
+            # Return to 0 degrees
             current_angle = motor.go_to_angle(current_angle, 0)
             time.sleep(2)
         else:
             time.sleep(0.1)
 
-try:
-    # Start motor thread
-    motor_thread = threading.Thread(target=motor_thread_func)
-    motor_thread.start()
-except KeyboardInterrupt:
-    print("Exiting...")
-    GPIO.cleanup()
+def main():
+    try:
+        motor_thread = threading.Thread(target=motor_thread_func)
+        motor_thread.daemon = True  # Ensures the thread exits with the main program
+        motor_thread.start()
+
+        while True:
+            time.sleep(1)  # Keep main thread alive
+
+    except KeyboardInterrupt:
+        print("Exiting...")
+    finally:
+        GPIO.cleanup()
+
+if __name__ == "__main__":
+    main()
